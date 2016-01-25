@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<!-- 上下文组件扫描 -->
+	<context:annotation-config />
+	<context:component-scan base-package="com.fengzhi.web" />
+
+	<!-- 加载配置文件 -->
+	<context:property-placeholder location="classpath*:jdbc.properties" />
+
+	<!-- 数据源 spring jdbc -->
+	<bean id="myJdbcDataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+	<!-- 数据源 dbcp -->
+	<bean id="myDbcpDataSource" destroy-method="close" class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+	<!-- 数据源c3p0 -->
+	<bean id="myC3p0DataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" destroy-method="close">
+		<property name="driverClass" value="${jdbc.driverClassName}" />
+		<property name="jdbcUrl" value="${jdbc.url}" />
+		<property name="user" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+
+	<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+		<property name="dataSource">
+			<ref bean="myJdbcDataSource" />
+		</property>
+	</bean>
+	<bean id="jdbcTemplate2" class="org.springframework.jdbc.core.JdbcTemplate">
+		<property name="dataSource">
+			<ref bean="myDbcpDataSource" />
+		</property>
+	</bean>
+	<bean id="jdbcTemplate3" class="org.springframework.jdbc.core.JdbcTemplate">
+		<property name="dataSource">
+			<ref bean="myC3p0DataSource" />
+		</property>
+	</bean>
+
+	<!-- session 工厂 -->
+	<bean id="myHibernateSessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="myJdbcDataSource" />
+		<property name="mappingDirectoryLocations">
+			<list>
+				<value>classpath:com/fengzhi/web/domain</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<value>
+				hibernate.dialect=org.hibernate.dialect.HSQLDialect
+			</value>
+		</property>
+	</bean>
+	<bean id="myHibernateSessionFactory2" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="myDbcpDataSource" />
+		<property name="mappingDirectoryLocations">
+			<list>
+				<value>classpath:com/fengzhi/web/domain</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<value>
+				hibernate.dialect=org.hibernate.dialect.HSQLDialect
+			</value>
+		</property>
+	</bean>
+	<bean id="myHibernateSessionFactory3" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="myC3p0DataSource" />
+		<property name="mappingDirectoryLocations">
+			<list>
+				<value>classpath:com/fengzhi/web/domain</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<value>
+				hibernate.dialect=org.hibernate.dialect.MySQLDialect
+			</value>
+		</property>
+	</bean>
+
+	<!-- 事务管理器 -->
+	<bean id="dataSourceTxManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="myDbcpDataSource" />
+	</bean>
+	<!-- 事务管理器 -->
+	<bean id="hibernateTxManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory" ref="myHibernateSessionFactory3" />
+	</bean>
+
+	<!-- bean共享事务代理 -->
+	<bean id="myTxProxyTemplate" abstract="true" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<!-- 事务管理器 -->
+		<property name="transactionManager" ref="hibernateTxManager" />
+		<!-- 事务属性 -->
+		<property name="transactionAttributes">
+			<props>
+				<prop key="insert*">PROPAGATION_REQUIRED</prop>
+				<prop key="delete*">PROPAGATION_REQUIRED</prop>
+				<prop key="update*">PROPAGATION_REQUIRED</prop>
+
+				<prop key="save*">PROPAGATION_REQUIRED</prop>
+				<prop key="remove*">PROPAGATION_REQUIRED</prop>
+				<prop key="modify*">PROPAGATION_REQUIRED</prop>
+
+				<prop key="add*">PROPAGATION_REQUIRED</prop>
+				<prop key="drop*">PROPAGATION_REQUIRED</prop>
+				<prop key="set*">PROPAGATION_REQUIRED</prop>
+
+				<prop key="*">PROPAGATION_REQUIRED,readOnly</prop>
+			</props>
+		</property>
+	</bean>
+
+	<!-- tx标签配置的事务处理拦截器 -->
+	<tx:advice id="txAdvice" transaction-manager="hibernateTxManager">
+		<tx:attributes>
+			<tx:method name="*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+
+	<aop:config>
+		<aop:pointcut id="myTxPointcut" expression="execution(* com.fengzhi.web..*.*(..))" />
+
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="myTxPointcut" />
+	</aop:config>
+
+	<!-- service -->
+	<bean id="userService" parent="myTxProxyTemplate">
+		<property name="target">
+			<bean class="com.fengzhi.web.service.impl.UserServiceImpl">
+				<property name="userDao" ref="myUserDao" />
+			</bean>
+		</property>
+	</bean>
+	
+	<!-- base dao -->
+	<bean id="baseDao" abstract="true" class="com.fengzhi.web.core.dao.impl.BaseDaoImpl">
+		<property name="sessionFactory" ref="myHibernateSessionFactory3" />
+	</bean>
+	<!-- dao -->
+	<bean id="myUserDao" class="com.fengzhi.web.dao.impl.UserDaoImpl" parent="baseDao" />
+</beans>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

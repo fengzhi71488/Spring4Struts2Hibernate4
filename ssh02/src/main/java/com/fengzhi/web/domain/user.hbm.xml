@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+	<class name="com.fengzhi.web.entity.User" table="t_user" catalog="permissionsys">
+		<id name="id" type="int">
+			<column name="id" />
+			<generator class="identity" />
+		</id>
+		<property name="userCode" type="int">
+			<column name="user_code" length="11" not-null="true">
+			</column>
+		</property>
+		<property name="username" type="string">
+			<column name="username" length="20" not-null="true">
+			</column>
+		</property>
+		<property name="password" type="string">
+			<column name="password" length="20">
+			</column>
+		</property>
+		<property name="remark" type="string">
+			<column name="remark" length="20">
+			</column>
+		</property>
+
+	</class>
+</hibernate-mapping>

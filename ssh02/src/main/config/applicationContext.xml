@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<!-- 加载配置文件 -->
+	<context:property-placeholder location="classpath*:jdbc.properties" />
+
+	<!-- 数据源：c3p0数据库连接池 -->
+	<bean id="myC3p0DataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" destroy-method="close">
+		<property name="driverClass" value="${jdbc.driverClassName}" />
+		<property name="jdbcUrl" value="${jdbc.url}" />
+		<property name="user" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+
+	<!-- session 工厂 -->
+	<bean id="myHibernateSessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="myC3p0DataSource" />
+
+		<!-- 持久化数据配置文件 -->
+		<property name="mappingDirectoryLocations">
+			<list>
+				<value>classpath:com/fengzhi/web/domain</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<value>
+				hibernate.dialect=org.hibernate.dialect.MySQLDialect
+				hibernate.temp.use_jdbc_metadata_defaults=false
+			</value>
+		</property>
+	</bean>
+
+	<!-- 事务管理器 -->
+	<bean id="hibernateTxManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory" ref="myHibernateSessionFactory" />
+	</bean>
+
+	<!-- bean共享事务代理 -->
+	<bean id="myTxProxyTemplate" abstract="true" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<!-- 配置事务管理器 -->
+		<property name="transactionManager" ref="hibernateTxManager" />
+		<!-- 配置事务属性 -->
+		<property name="transactionAttributes">
+			<props>
+				<prop key="insert*">PROPAGATION_REQUIRED</prop>
+				<prop key="delete*">PROPAGATION_REQUIRED</prop>
+				<prop key="update*">PROPAGATION_REQUIRED</prop>
+
+				<prop key="save*">PROPAGATION_REQUIRED</prop>
+				<prop key="remove*">PROPAGATION_REQUIRED</prop>
+				<prop key="modify*">PROPAGATION_REQUIRED</prop>
+
+				<prop key="add*">PROPAGATION_REQUIRED</prop>
+				<prop key="drop*">PROPAGATION_REQUIRED</prop>
+				<prop key="set*">PROPAGATION_REQUIRED</prop>
+
+				<prop key="*">PROPAGATION_REQUIRED,readOnly</prop>
+			</props>
+		</property>
+	</bean>
+
+	<!-- service -->
+	<bean id="myUserService" parent="myTxProxyTemplate">
+		<property name="target">
+			<bean class="com.fengzhi.web.service.impl.UserServiceImpl">
+				<property name="userDao" ref="myUserDao" />
+			</bean>
+		</property>
+	</bean>
+
+	<!-- generic dao -->
+	<bean id="GenericDao" abstract="true" class="com.fengzhi.common.dao.impl.GenericDaoImpl">
+		<property name="sessionFactory" ref="myHibernateSessionFactory" />
+	</bean>
+
+	<!-- dao -->
+	<bean id="myUserDao" class="com.fengzhi.web.dao.impl.UserDaoImpl" parent="GenericDao" />
+
+	<!-- spring 管理 struts2 action;需要引入struts2-spring-plugin.jar -->
+	<bean id="login" class="com.fengzhi.web.action.LoginAction">
+		<property name="userService" ref="myUserService" />
+	</bean>
+</beans>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
